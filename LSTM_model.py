@@ -81,5 +81,24 @@ class M_LSTM(nn.Module):
 
         return state
 
+    def decode(self, input):
+        output_state = self.hidden_state_init.expand(input.size(0), -1)
+        cell_state = self.hidden_state_init.expand(input.size(0), -1)
+        lstm_input = self.w_emb(input)
 
+        concat_result = torch.cat((lstm_input, output_state), dim=-1)
 
+        f_gate_state = self.f_gate(concat_result)
+        o_gate_state = self.o_gate(concat_result)
+        i_gate_state = self.i_gate(concat_result)
+        h_state = self.act(concat_result)
+
+        product_cell_fgate = cell_state * f_gate_state
+        product_igate_h = i_gate_state * h_state
+
+        current_cell = product_cell_fgate + product_igate_h
+        current_output = current_cell * o_gate_state
+
+        output = torch.argmax(self.classifier(current_output), dim=1)
+
+        return output

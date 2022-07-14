@@ -1,6 +1,8 @@
 import torch
 import numpy as np
-from LSTM.LSTM_model import M_LSTM
+import torch.nn as nn
+from LSTM_model import M_LSTM
+from BPE_handle.word22id import interchange, word2id, id2word, get_word, replace_word
 
 PATH_MODEL = "./LSTM_train_state/train_state_73000.pth"
 PATH_INDEX = "F:/PyTorch学习/BPE_handle/en_index.npy"
@@ -15,12 +17,16 @@ def load(srcf):
 
 if __name__ == '__main__':
     en2index = load(PATH_INDEX)
+    en = get_word(en2index)
 
     sentence = input("请输入测试语句:").strip().split()
+    # print(sentence)
+
+    sentence = replace_word(sentence, en)
     print(sentence)
 
-    word2id = [en2index[i] for i in sentence]
-    print(word2id)
+    word2id_l = word2id(en2index, sentence)
+    # print(word2id)
 
     model = M_LSTM(len(en2index))
 
@@ -32,18 +38,22 @@ if __name__ == '__main__':
 
     model.to(device)
 
-    predict_step = len(word2id)
-    input = []
+    decode_step = len(sentence)
+    predict_step = len(word2id_l)
+    h_state= None
+    cell = None
+    result = []
+
+    # 先将整句话过一遍decode
+    for i in range(decode_step):
+        words = torch.LongTensor([word2id_l[i]]).to(device)
+        output, h_state, cell = model.decode(words, h_state, cell)
 
     for i in range(predict_step):
-        words = torch.LongTensor([word2id[i]]).to(device)  # 每次取一个词的索引
-        output = model.decode(words)  # 解码获得最可能的下一个词
-        input.append(output.item())
+        words = torch.LongTensor([word2id_l[i]]).to(device)  # 每次取一个词的索引
+        output, h_state, cell = model.decode(words, h_state, cell)  # 解码获得最可能的下一个词
+        result.append(output.item())
 
-    result_words = []
+    result_words = id2word(en2index, result)
 
-    for i in range(len(input)):
-        s = [en for en, index in en2index.items() if index == input[i]]
-        result_words.append("".join(s))
-
-    print(" ".join(result_words).replace("@@ ", ""))
+    print("预测句子结果为:{}".format(" ".join(result_words).replace("@@ ", "")))

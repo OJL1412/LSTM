@@ -18,6 +18,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # 相关参数设置
 num_epoch = 1  # 训练轮次
+num_layers = 5  # 使用LSTMLayer的层数
 curb = 0  # 起始组数
 
 if __name__ == '__main__':
@@ -25,7 +26,7 @@ if __name__ == '__main__':
     torch.manual_seed(0)  # 设置CPU生成随机数的种子，为确保每次生成固定的随机数，方便下次复现实验结果，需在模型定义前设置
 
     # 模型定义，并传入词典大小vocab_size
-    model = M_LSTM(vocab_size)
+    model = M_LSTM(vocab_size, num_layers)
     model = model.to(device)
     model.train()
 
@@ -46,6 +47,7 @@ if __name__ == '__main__':
     opt = op.Adam(model.parameters())
 
     # 训练过程
+    print("--"*11, "此次训练使用了{}层 LSTMLayer".format(num_layers), "--"*11)
     for epoch in range(num_epoch):
         print('**' * 15, "训练轮次{}".format(epoch + 1), '**' * 15)
         curb = 0
@@ -86,7 +88,7 @@ if __name__ == '__main__':
 
             # 每处理1000个batch保存一次模型参数
             if curb % 1000 == 0:
-                torch.save(model.state_dict(), './LSTM_train_state/train_state_{}.pth'.format(curb))
+                torch.save(model.state_dict(), './LSTM_train_state/lstm_train_state_{}.pth'.format(curb))
                 print('<train_state_{}.pth> 存储完毕, 模型参数保存成功'.format(curb))
                 print('--' * 30)
             curb += 1

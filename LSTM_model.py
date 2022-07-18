@@ -29,7 +29,7 @@ class LSTMCell(nn.Module):
         dropout = 0.1 if dropout is None else dropout
 
         self.trans = nn.Linear(i_size + h_state, h_state * 4, bias=False)  # ?+?-->?*4
-        self.norm = nn.LayerNorm([4, h_state])  # 归一化处理，得到4个？大小的张量
+        self.norm = nn.LayerNorm((4, h_state))  # 归一化处理，得到4个？大小的张量
         self.act = nn.GELU()  # 激活函数处理
         self.drop = nn.Dropout(dropout)  # 使用dropout使数据特征间产生关联
 
@@ -42,7 +42,7 @@ class LSTMCell(nn.Module):
         """
         output, cell = h_state
         o_size = list(output.size())
-        o_size.insert(-1, 4)  # 在最后一维插入4，[b_size, 1, 32]-->[b_size, 1, 4, 32]，然后将其传给遗忘门f_gate、输入门i_gate、输出门o_gate
+        o_size.insert(-1, 4)  # 在最后一维插入4，[b_size, o_size]-->[b_size, 4, o_size]，然后将其传给遗忘门f_gate、输入门i_gate、输出门o_gate
 
         # 第1步处理
         handle = self.norm(self.trans(torch.cat((input, output), dim=-1)).view(o_size))
@@ -87,19 +87,22 @@ class LSTMLayer(nn.Module):
 
         return output
 
-    def decode(self, input, h_state, cell):
-        h_state = self.init_ht.expand(input.size(0), -1) if h_state is None else h_state
-        cell = self.init_cl.expand(input.size(0), -1) if cell is None else cell
+    def decode(self, input, h_state=None):
+        h_state, cell = self.init_ht.expand(input.size(0), -1), self.init_cl.expand(input.size(0), -1) if h_state is None else h_state
+
+        # h_state = self.init_ht.expand(input.size(0), -1) if h_state is None else h_state
+        # cell = self.init_cl.expand(input.size(0), -1) if cell is None else cell
 
         h_state, cell = self.l_net(input, (h_state, cell))
 
-        return h_state, cell
+        return h_state, (h_state, cell)
 
 
 class M_LSTM(nn.Module):
     """
     <M_LSTM类>
     """
+
     def __init__(self, v_size, num_layers, emb_dim=32, h_state=None, bind_emb=True):
         super(M_LSTM, self).__init__()
 
@@ -107,10 +110,9 @@ class M_LSTM(nn.Module):
 
         # Embedding进行词嵌入，随机初始化映射为一个向量矩阵，参数1是嵌入字典的词的数量，参数2是每个嵌入向量的大小，此处为词向量维度32
         self.w_emb = nn.Embedding(v_size, emb_dim)
-        self.m_net = nn.Sequential()
-
-        for i in range(num_layers):
-            self.m_net.add_module("LSTMLayer_{}".format(i), LSTMLayer(emb_dim, h_state))
+        self.m_net = nn.Sequential(
+            *[LSTMLayer(i_size=emb_dim if i == 0 else h_state, h_state=h_state) for i in range(num_layers)]
+        )
 
         self.classifier = nn.Sequential(
             nn.Linear(h_state, emb_dim, bias=False),
@@ -127,11 +129,23 @@ class M_LSTM(nn.Module):
 
         return output
 
-    def decode(self, input, h_state, cell):
-        lstm_input = self.w_emb(input)
+    """
+    ① input: 输入的语料，一般是一个词
+    ② step: 需预测的词数
+    """
 
-        h_state, cell = self.m_net[-1].decode(lstm_input, h_state, cell)
+    def decode(self, input, ht_record):
+        inp = self.w_emb(input)  # (b_size, seql, v_size)
+        rs = []
 
-        output = torch.argmax(self.classifier(h_state), dim=1)
+        # ht_record = {}  # 用来记录每次LSTMCell层计算完后的(h_state, cell)
+        for i in range(len(self.m_net)):
+            ht_record[i] = None
 
-        return output, h_state, cell
+        for j, net in enumerate(self.m_net):
+            inp, ht_record[j] = net.decode(inp, h_state=ht_record[j])
+
+        output = torch.argmax(self.classifier(inp), dim=-1)
+
+        return output, ht_record
+

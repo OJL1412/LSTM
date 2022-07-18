@@ -8,7 +8,7 @@ PATH_MODEL = "./LSTM_train_state/lstm_train_state_73000.pth"
 PATH_INDEX = "F:/PyTorch学习/BPE_handle/en_index.npy"
 # PATH_INDEX = "./LSTM_file/en_index.npy"
 
-num_layers = 5
+num_layers = 6
 
 
 def load(srcf):

@@ -111,7 +111,7 @@ class M_LSTM(nn.Module):
         # Embedding进行词嵌入，随机初始化映射为一个向量矩阵，参数1是嵌入字典的词的数量，参数2是每个嵌入向量的大小，此处为词向量维度32
         self.w_emb = nn.Embedding(v_size, emb_dim)
         self.m_net = nn.Sequential(
-            *[LSTMLayer(i_size=emb_dim if i == 0 else h_state, h_state=h_state) for i in range(num_layers)]
+            *[LSTMLayer(i_size=emb_dim if i == 0 else h_state, h_state=h_state) for i in range(num_layers-1)]
         )
 
         self.classifier = nn.Sequential(

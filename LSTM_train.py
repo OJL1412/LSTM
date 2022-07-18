@@ -47,7 +47,7 @@ if __name__ == '__main__':
     opt = op.Adam(model.parameters())
 
     # 训练过程
-    print("--"*11, "此次训练使用了{}层 LSTMLayer".format(num_layers), "--"*11)
+    print("--"*11, "此次训练使用了{}层 LSTMLayer".format(num_layers+1), "--"*11)
     for epoch in range(num_epoch):
         print('**' * 15, "训练轮次{}".format(epoch + 1), '**' * 15)
         curb = 0

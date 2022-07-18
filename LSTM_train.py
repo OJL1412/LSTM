@@ -18,7 +18,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # 相关参数设置
 num_epoch = 1  # 训练轮次
-num_layers = 5  # 使用LSTMLayer的层数
+num_layers = 6  # 使用LSTMLayer的层数
 curb = 0  # 起始组数
 
 if __name__ == '__main__':
